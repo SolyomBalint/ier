@@ -1,0 +1,10 @@
+#Fri Nov 17 17:47:07 CET 2017
+map=map3.txt
+width=1200
+heiht=940
+left=-1285
+speed=100
+maximized=0
+agent_count=5
+top=101
+height=800
