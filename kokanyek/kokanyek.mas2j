@@ -12,7 +12,7 @@
 
 MAS kokanyek {
 
-    environment: example.Env(10)
+    environment: example.HouseEnv(10)
 
     agents: bob;
             alice;
