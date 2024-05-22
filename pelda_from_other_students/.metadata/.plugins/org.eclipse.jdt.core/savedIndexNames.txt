@@ -1,0 +1,4 @@
+INDEX VERSION 1.131+C:\Users\kocka\Desktop\IER\HF2\.metadata\.plugins\org.eclipse.jdt.core
+113558702.index
+4030372973.index
+282632478.index
