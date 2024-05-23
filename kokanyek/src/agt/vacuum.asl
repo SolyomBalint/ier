@@ -1,7 +1,7 @@
 // Agent bob in project kokanyek
 
 /* Initial beliefs and rules */
-pos(docker,13, 1).
+pos(docker,13, 8).
 -bagFull.
 -busy.
 /* Initial goals */

@@ -79,6 +79,8 @@ public class HouseEnv extends Environment {
         updatePercepts();
 
         startTimer();
+        model.vacuumDocked = true;
+        model.humanSleeping = true;
     }
 
     private void startTimer() {
@@ -245,7 +247,7 @@ public class HouseEnv extends Environment {
             // initial location of agents
             try {
                 setAgPos(0, 1, 1);
-                setAgPos(1,13,1);
+                setAgPos(1,13,8);
 
             } catch (Exception e) {
                 e.printStackTrace();
