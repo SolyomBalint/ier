@@ -45,12 +45,12 @@ pos(vacuum,9, 3).
        sleep.
 
 @lg[atomic]
-+emptyVacuumBag : not alarm
++!emptyVacuumBag : not alarm
     <- .print("I am going to clean the vacuum!");
        !go(vacuum);
        .print("I am at the vacuum now!");
        cleanVacuum;
-       .send(vacuum, tell, emptyBag).
+       .send(vacuum, achieve, emptyBag).
 
 
 @atomic

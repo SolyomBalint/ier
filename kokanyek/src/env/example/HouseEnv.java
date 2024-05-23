@@ -47,6 +47,12 @@ public class HouseEnv extends Environment {
     public static final Literal alarm = Literal.parseLiteral("alarm");
     public static final Literal humanInTheHouse = Literal.parseLiteral("humanInTheHouse");
     public static final Literal bagFull = Literal.parseLiteral("bagFull");
+    public static final Literal ready = Literal.parseLiteral("ready");
+    public static final Literal docked = Literal.parseLiteral("docked");
+    public static final Literal cleanDirtyFloor = Literal.parseLiteral("cleanDirtyFloor");
+    public static final Literal emptyVacuumBag = Literal.parseLiteral("emptyVacuumBag");
+    public static final Literal goHome = Literal.parseLiteral("goHome");
+
 
 
 
@@ -101,7 +107,13 @@ public class HouseEnv extends Environment {
                 model.humanDoNothing();
                 model.humanWalking = true;
                 model.humanMoveTowards(x,y);
-            } else if (action.equals(eat)) {
+            }else if (action.getFunctor().equals("vacuum_move_towards")) {
+                int x = (int)((NumberTerm)action.getTerm(0)).solve();
+                int y = (int)((NumberTerm)action.getTerm(1)).solve();
+                model.vacuumDoNothing();
+                model.vacuumGoing = true;
+                model.vacuumMoveTowards(x,y);
+            }else if (action.equals(eat)) {
                 model.humanDoNothing();
                 model.humanEating = true;
             } else if (action.equals(work)) {
@@ -111,7 +123,8 @@ public class HouseEnv extends Environment {
                 model.humanDoNothing();
                 model.humanReading  = true;
             } else if (action.equals(cleanVacuum)) {
-                model.vacuumFull = false;
+                model.vacuumBag = 0;
+
             } else if (action.equals(call)) {
                 model.humanDoNothing();
                 model.humanCalling = true;
@@ -121,6 +134,18 @@ public class HouseEnv extends Environment {
             } else if (action.equals(sleep)) {
                 model.humanDoNothing();
                 model.humanSleeping = true;
+            } else if (action.equals(ready)) {
+                model.vacuumDoNothing();
+                model.vacuumReady = true;
+            } else if (action.equals(docked)) {
+                model.vacuumDoNothing();
+                model.vacuumDocked = true;
+            } else if (action.equals(cleanDirtyFloor)) {
+                model.vacuumBag++;
+                model.remove(GARB, model.garbageX, model.garbageY);
+                view.update(model.garbageX, model.garbageY);
+                if(model.vacuumBag < 3)
+                    model.vacuumShouldGoHome = true;
             } else {
                 return false;
             }
@@ -160,6 +185,7 @@ public class HouseEnv extends Environment {
             addPercept(night);
         if(time == 150)
             time = 0;
+        removePercept(emptyVacuumBag);
 
         if(model.alarmIsOn)
             addPercept(alarm);
@@ -171,8 +197,19 @@ public class HouseEnv extends Environment {
         else
             addPercept(humanInTheHouse);
 
-        if(model.vacuumFull)
+        if(model.floorIsDirty){
+            Literal needForClean = Literal.parseLiteral("needToClean(" + model.garbageX + "," + model.garbageY + ")");
+            addPercept(needForClean);
+            model.floorIsDirty = false;
+        }
+        if(model.vacuumShouldGoHome){
+            addPercept(goHome);
+            model.vacuumShouldGoHome = false;
+        }
+
+        if(model.vacuumBag == 3)
             addPercept(bagFull);
+
     }
     /** Called before the end of MAS execution */
     @Override
@@ -190,7 +227,15 @@ public class HouseEnv extends Environment {
         public boolean humanCalling = false;
         public boolean humanWalking = false;
         public boolean alarmIsOn = false;
-        public boolean vacuumFull = false;
+        public int vacuumBag = 0;
+        public boolean vacuumReady = false;
+        public boolean vacuumDocked = false;
+        public int garbageX = 0;
+        public int garbageY = 0;
+        public boolean floorIsDirty = false;
+        public boolean vacuumGoing = false;
+        public boolean vacuumShouldGoHome = false;
+
 
         Random random = new Random(System.currentTimeMillis());
 
@@ -200,7 +245,7 @@ public class HouseEnv extends Environment {
             // initial location of agents
             try {
                 setAgPos(0, 1, 1);
-                setAgPos(1,8,2);
+                setAgPos(1,13,1);
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -252,6 +297,19 @@ public class HouseEnv extends Environment {
             setAgPos(0, humanLoc);
         }
 
+        void vacuumMoveTowards(int x, int y) throws Exception {
+            Location vacuumLoc = getAgPos(1);
+            if (vacuumLoc.x < x)
+                vacuumLoc.x++;
+            else if (vacuumLoc.x > x)
+                vacuumLoc.x--;
+            if (vacuumLoc.y < y)
+                vacuumLoc.y++;
+            else if (vacuumLoc.y > y)
+                vacuumLoc.y--;
+            setAgPos(1, vacuumLoc);
+        }
+
         void humanDoNothing(){
             humanEating = false;
             humanSleeping = false;
@@ -259,6 +317,17 @@ public class HouseEnv extends Environment {
             humanVacuum = false;
             humanWorking = false;
             humanWalking = false;
+        }
+        void vacuumDoNothing(){
+            vacuumDocked = false;
+            vacuumReady = false;
+            vacuumGoing = false;
+        }
+
+        void cleanGarbageAt(int x, int y){
+            floorIsDirty = true;
+            garbageX = x;
+            garbageY = y;
         }
     }
 
@@ -283,6 +352,7 @@ public class HouseEnv extends Environment {
                         HouseModel hm = (HouseModel) model;
                         hm.add(GARB, col, lin);
                         update(col, lin);
+                        ((HouseModel)model).cleanGarbageAt(col, lin);
                     }
                 }
                 public void mouseExited(MouseEvent e) {}
@@ -296,11 +366,7 @@ public class HouseEnv extends Environment {
                     // Check if the pressed key is 'a'
                     if (e.getKeyChar() == 'a') {
                         // Call the alarmPushed function
-                        ((HouseModel)model).alarmIsOn = !((HouseModel)model).alarmIsOn;
-                    }
-                    if (e.getKeyChar() == 'v') {
-                        // Call the alarmPushed function
-                        ((HouseModel)model).vacuumFull = true;
+                        ((HouseModel) model).alarmIsOn = !((HouseModel) model).alarmIsOn;
                     }
                 }
                 @Override
@@ -327,12 +393,7 @@ public class HouseEnv extends Environment {
 
         @Override
         public void drawAgent(Graphics g, int x, int y, Color c, int id) {
-            String label;
-
-
-            label = "R"+(id+1);
-
-            c = Color.blue;
+            String label = "";
             if (id == 0) {
                 label = "Human";
                 if (((HouseModel)model).humanEating) {
@@ -359,13 +420,32 @@ public class HouseEnv extends Environment {
                     label += " - Walking";
                     c = Color.GREEN;
                 }
+            }
+            if(id == 1) {
+                label = "Vacuum";
+                if (((HouseModel)model).vacuumReady) {
+                    label += " - Ready";
+                    c = Color.GREEN;
+                }
+                if (((HouseModel)model).vacuumDocked) {
+                    label += " - Charging";
+                    c = Color.YELLOW;
+                }
+                if (((HouseModel)model).vacuumGoing) {
+                    label += " - Going";
+                    c = Color.BLUE;
+                }
+                if (((HouseModel)model).vacuumBag == 3) {
+                    label = "Vacuum - FULL";
+                    c = Color.RED;
+                }
 
             }
             super.drawAgent(g, x, y, c, -1);
             if (id == 0) {
                 g.setColor(Color.black);
             } else {
-                g.setColor(Color.white);
+                g.setColor(Color.black);
             }
             super.drawString(g, x, y, defaultFont, label);
             repaint();
@@ -376,6 +456,7 @@ public class HouseEnv extends Environment {
             g.setColor(Color.white);
             drawString(g, x, y, defaultFont, "G");
         }
+
 
 
 
