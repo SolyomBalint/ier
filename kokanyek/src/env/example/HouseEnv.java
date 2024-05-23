@@ -6,8 +6,11 @@ import jason.asSyntax.*;
 import jason.environment.*;
 import jason.asSyntax.parser.*;
 
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.sql.Struct;
 import java.util.logging.*;
 
 import jason.asSyntax.*;
@@ -21,23 +24,39 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.util.Random;
 
+import java.util.Timer;
+import java.util.TimerTask;
+
 public class HouseEnv extends Environment {
 
     public static final int GSize = 15; // grid size
-    public static final int GARB  = 16; // garbage code in grid model
+    public static final int GARB = 16;
 
-    public static final Term    ns = Literal.parseLiteral("next(slot)");
-    public static final Term    pg = Literal.parseLiteral("pick(garb)");
-    public static final Term    dg = Literal.parseLiteral("drop(garb)");
-    public static final Term    bg = Literal.parseLiteral("burn(garb)");
-    public static final Literal g1 = Literal.parseLiteral("garbage(r1)");
-    public static final Literal g2 = Literal.parseLiteral("garbage(r2)");
+    public static final Literal eat = Literal.parseLiteral("eat");
+    public static final Literal work = Literal.parseLiteral("work");
+    public static final Literal read = Literal.parseLiteral("read");
+    public static final Literal cleanVacuum = Literal.parseLiteral("cleanVacuum");
+    public static final Literal call = Literal.parseLiteral("call(911)");
+    public static final Literal stopCall = Literal.parseLiteral("stopCall");
+    public static final Literal sleep = Literal.parseLiteral("sleep");
+    public static final Literal morning = Literal.parseLiteral("morning");
+    public static final Literal duringDay = Literal.parseLiteral("duringDay");
+    public static final Literal evening = Literal.parseLiteral("evening");
+    public static final Literal lateEvening = Literal.parseLiteral("lateEvening");
+    public static final Literal night = Literal.parseLiteral("night");
+    public static final Literal alarm = Literal.parseLiteral("alarm");
+    public static final Literal humanInTheHouse = Literal.parseLiteral("humanInTheHouse");
+    public static final Literal bagFull = Literal.parseLiteral("bagFull");
+
+
 
 
     private Logger logger = Logger.getLogger("kokanyek."+HouseEnv.class.getName());
 
     private HouseModel model;
     private HouseView  view;
+
+    private int time = 0;
 
     /** Called before the MAS execution with the args informed in .mas2j */
     @Override
@@ -52,24 +71,56 @@ public class HouseEnv extends Environment {
         }
         model.setView(view);
         updatePercepts();
+
+        startTimer();
+    }
+
+    private void startTimer() {
+        Timer timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                timeFliesBy();
+            }
+        }, 0, 200); // 200 milliseconds delay before the first execution, and 200 milliseconds between subsequent executions
+    }
+
+    private void timeFliesBy() {
+        time++;
+        updatePercepts();
+        informAgsEnvironmentChanged();
     }
 
     @Override
     public boolean executeAction(String ag, Structure action) {
-        logger.info(ag+" doing: "+ action);
+        //logger.info(ag+" doing: "+ action);
         try {
-            if (action.equals(ns)) {
-                model.nextSlot();
-            } else if (action.getFunctor().equals("move_towards")) {
+            if (action.getFunctor().equals("human_move_towards")) {
                 int x = (int)((NumberTerm)action.getTerm(0)).solve();
                 int y = (int)((NumberTerm)action.getTerm(1)).solve();
-                model.moveTowards(x,y);
-            } else if (action.equals(pg)) {
-                //model.pickGarb();
-            } else if (action.equals(dg)) {
-                //model.dropGarb();
-            } else if (action.equals(bg)) {
-                //model.burnGarb();
+                model.humanDoNothing();
+                model.humanWalking = true;
+                model.humanMoveTowards(x,y);
+            } else if (action.equals(eat)) {
+                model.humanDoNothing();
+                model.humanEating = true;
+            } else if (action.equals(work)) {
+                model.humanDoNothing();
+                model.humanWorking = true;
+            } else if (action.equals(read)) {
+                model.humanDoNothing();
+                model.humanReading  = true;
+            } else if (action.equals(cleanVacuum)) {
+                model.vacuumFull = false;
+            } else if (action.equals(call)) {
+                model.humanDoNothing();
+                model.humanCalling = true;
+            } else if (action.equals(stopCall)) {
+                model.humanDoNothing();
+                model.humanCalling = false;
+            } else if (action.equals(sleep)) {
+                model.humanDoNothing();
+                model.humanSleeping = true;
             } else {
                 return false;
             }
@@ -78,7 +129,6 @@ public class HouseEnv extends Environment {
         }
 
         updatePercepts();
-
         try {
             Thread.sleep(200);
         } catch (Exception e) {}
@@ -89,21 +139,40 @@ public class HouseEnv extends Environment {
     void updatePercepts() {
         clearPercepts();
 
-        Location r1Loc = model.getAgPos(0);
-        Location r2Loc = model.getAgPos(1);
+        Location humanLoc = model.getAgPos(0);
+        Location vacuumLoc = model.getAgPos(1);
 
-        Literal pos1 = Literal.parseLiteral("pos(r1," + r1Loc.x + "," + r1Loc.y + ")");
-        Literal pos2 = Literal.parseLiteral("pos(r2," + r2Loc.x + "," + r2Loc.y + ")");
-
+        Literal pos1 = Literal.parseLiteral("pos(human," + humanLoc.x + "," + humanLoc.y + ")");
+        Literal pos2 = Literal.parseLiteral("pos(vacuum," + vacuumLoc.x + "," + vacuumLoc.y + ")");
         addPercept(pos1);
         addPercept(pos2);
+        //System.out.println("time: " + time);
+        //This is important for human's day routine
+        if(time == 10)
+            addPercept(morning);
+        if(time == 30)
+            addPercept(duringDay);
+        if(time == 60)
+            addPercept(evening);
+        if(time == 90)
+            addPercept(lateEvening);
+        if(time == 120)
+            addPercept(night);
+        if(time == 150)
+            time = 0;
 
-        if (model.hasObject(GARB, r1Loc)) {
-            addPercept(g1);
-        }
-        if (model.hasObject(GARB, r2Loc)) {
-            addPercept(g2);
-        }
+        if(model.alarmIsOn)
+            addPercept(alarm);
+        else
+            removePercept(alarm);
+
+        if(humanLoc.x > 12 && humanLoc.y > 12)
+            removePercept(humanInTheHouse);
+        else
+            addPercept(humanInTheHouse);
+
+        if(model.vacuumFull)
+            addPercept(bagFull);
     }
     /** Called before the end of MAS execution */
     @Override
@@ -113,31 +182,30 @@ public class HouseEnv extends Environment {
 
     class HouseModel extends GridWorldModel {
 
-        public static final int MErr = 2; // max error in pick garb
-        int nerr; // number of tries of pick garb
-        boolean r1HasGarb = false; // whether r1 is carrying garbage or not
+        public boolean humanEating = false;
+        public boolean humanWorking = false;
+        public boolean humanReading = false;
+        public boolean humanSleeping = false;
+        public boolean humanVacuum = false;
+        public boolean humanCalling = false;
+        public boolean humanWalking = false;
+        public boolean alarmIsOn = false;
+        public boolean vacuumFull = false;
 
         Random random = new Random(System.currentTimeMillis());
 
         private HouseModel() {
-            super(GSize, GSize, 2);
+            super(GSize, GSize, 3);
 
             // initial location of agents
             try {
-                setAgPos(0, 0, 0);
+                setAgPos(0, 1, 1);
+                setAgPos(1,8,2);
 
-                Location r2Loc = new Location(GSize/2, GSize/2);
-                setAgPos(1, r2Loc);
             } catch (Exception e) {
                 e.printStackTrace();
             }
 
-            // initial location of garbage
-            //add(GARB, 3, 0);
-            //add(GARB, GSize-1, 0);
-            //add(GARB, 1, 2);
-            //add(GARB, 0, GSize-2);
-            //add(GARB, GSize-1, GSize-1);
             for (int i = 0; i < GSize; i++) {
                 add(OBSTACLE, 0, i);
             }
@@ -171,60 +239,26 @@ public class HouseEnv extends Environment {
 
         }
 
-        void nextSlot() throws Exception {
-            Location r1 = getAgPos(0);
-            r1.x++;
-            if (r1.x == getWidth()) {
-                r1.x = 0;
-                r1.y++;
-            }
-            // finished searching the whole grid
-            if (r1.y == getHeight()) {
-                return;
-            }
-            setAgPos(0, r1);
-            setAgPos(1, getAgPos(1)); // just to draw it in the view
+        void humanMoveTowards(int x, int y) throws Exception {
+            Location humanLoc = getAgPos(0);
+            if (humanLoc.x < x)
+                humanLoc.x++;
+            else if (humanLoc.x > x)
+                humanLoc.x--;
+            if (humanLoc.y < y)
+                humanLoc.y++;
+            else if (humanLoc.y > y)
+                humanLoc.y--;
+            setAgPos(0, humanLoc);
         }
 
-        void moveTowards(int x, int y) throws Exception {
-            Location r1 = getAgPos(0);
-            if (r1.x < x)
-                r1.x++;
-            else if (r1.x > x)
-                r1.x--;
-            if (r1.y < y)
-                r1.y++;
-            else if (r1.y > y)
-                r1.y--;
-            setAgPos(0, r1);
-            setAgPos(1, getAgPos(1)); // just to draw it in the view
-        }
-
-        void pickGarb() {
-            // r1 location has garbage
-            if (model.hasObject(GARB, getAgPos(0))) {
-                // sometimes the "picking" action doesn't work
-                // but never more than MErr times
-                if (random.nextBoolean() || nerr == MErr) {
-                    remove(GARB, getAgPos(0));
-                    nerr = 0;
-                    r1HasGarb = true;
-                } else {
-                    nerr++;
-                }
-            }
-        }
-        void dropGarb() {
-            if (r1HasGarb) {
-                r1HasGarb = false;
-                add(GARB, getAgPos(0));
-            }
-        }
-        void burnGarb() {
-            // r2 location has garbage
-            if (model.hasObject(GARB, getAgPos(1))) {
-                remove(GARB, getAgPos(1));
-            }
+        void humanDoNothing(){
+            humanEating = false;
+            humanSleeping = false;
+            humanReading = false;
+            humanVacuum = false;
+            humanWorking = false;
+            humanWalking = false;
         }
     }
 
@@ -256,6 +290,29 @@ public class HouseEnv extends Environment {
                 public void mousePressed(MouseEvent e) {}
                 public void mouseReleased(MouseEvent e) {}
             });
+            getCanvas().addKeyListener(new KeyListener() {
+                @Override
+                public void keyPressed(KeyEvent e) {
+                    // Check if the pressed key is 'a'
+                    if (e.getKeyChar() == 'a') {
+                        // Call the alarmPushed function
+                        ((HouseModel)model).alarmIsOn = !((HouseModel)model).alarmIsOn;
+                    }
+                    if (e.getKeyChar() == 'v') {
+                        // Call the alarmPushed function
+                        ((HouseModel)model).vacuumFull = true;
+                    }
+                }
+                @Override
+                public void keyTyped(KeyEvent e) {
+                    // Not used in this example
+                }
+
+                @Override
+                public void keyReleased(KeyEvent e) {
+                    // Not used in this example
+                }
+            });
         }
 
         /** draw application objects */
@@ -270,14 +327,39 @@ public class HouseEnv extends Environment {
 
         @Override
         public void drawAgent(Graphics g, int x, int y, Color c, int id) {
-            String label = "R"+(id+1);
+            String label;
+
+
+            label = "R"+(id+1);
+
             c = Color.blue;
             if (id == 0) {
-                c = Color.yellow;
-                if (((HouseModel)model).r1HasGarb) {
-                    label += " - G";
-                    c = Color.orange;
+                label = "Human";
+                if (((HouseModel)model).humanEating) {
+                    label += " - Eating";
+                    c = Color.RED;
                 }
+                if (((HouseModel)model).humanWorking) {
+                    label += " - Working";
+                    c = Color.RED;
+                }
+                if (((HouseModel)model).humanReading) {
+                    label += " - Reading";
+                    c = Color.RED;
+                }
+                if (((HouseModel)model).humanCalling) {
+                    label += " - Calling 911";
+                    c = Color.RED;
+                }
+                if (((HouseModel)model).humanSleeping) {
+                    label += " - Sleeping";
+                    c = Color.RED;
+                }
+                if (((HouseModel)model).humanWalking) {
+                    label += " - Walking";
+                    c = Color.GREEN;
+                }
+
             }
             super.drawAgent(g, x, y, c, -1);
             if (id == 0) {

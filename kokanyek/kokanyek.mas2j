@@ -14,8 +14,9 @@ MAS kokanyek {
 
     environment: example.HouseEnv(10)
 
-    agents: bob;
-            alice;
+    agents: human;
+            vacuum;
+
 
     aslSourcePath: "src/agt";
 }
