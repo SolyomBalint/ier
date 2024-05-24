@@ -31,6 +31,12 @@ public class HouseEnv extends Environment {
 
     public static final int GSize = 15; // grid size
     public static final int GARB = 16;
+    public static final int TABLE = 32;
+    public static final int WORK = 64;
+    public static final int SOFA = 128;
+    public static final int BED = 256;
+    public static final int OUTSIDE = 512;
+    public static final int VACUUM = 1024;
 
     public static final Literal eat = Literal.parseLiteral("eat");
     public static final Literal work = Literal.parseLiteral("work");
@@ -154,10 +160,10 @@ public class HouseEnv extends Environment {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
+        view.repaint();
         updatePercepts();
         try {
-            Thread.sleep(200);
+            Thread.sleep(300);
         } catch (Exception e) {}
         informAgsEnvironmentChanged();
         return true;
@@ -283,6 +289,14 @@ public class HouseEnv extends Environment {
             add(OBSTACLE,GSize-3,GSize-4);
             add(OBSTACLE,GSize-4,GSize-4);
 
+            add(TABLE,2,8);
+            add(WORK,13,13);
+            add(SOFA,10,10);
+            add(BED,2,2);
+            add(OUTSIDE, 14, 14);
+            add(VACUUM,13, 8);
+
+
 
         }
 
@@ -337,7 +351,7 @@ public class HouseEnv extends Environment {
 
         public HouseView(HouseModel model) {
             super(model, "Hosue World", 600);
-            defaultFont = new Font("Arial", Font.BOLD, 18); // change default font
+            defaultFont = new Font("Arial", Font.BOLD, 10); // change default font
             setVisible(true);
             repaint();
         }
@@ -390,32 +404,53 @@ public class HouseEnv extends Environment {
                 case HouseEnv.GARB:
                     drawGarb(g, x, y);
                     break;
+                case HouseEnv.TABLE:
+                    drawTargets(g,x,y,"TABLE");
+                    break;
+                case HouseEnv.WORK:
+                    drawTargets(g,x,y,"Work");
+                    break;
+                case HouseEnv.SOFA:
+                    drawTargets(g,x,y,"SOFA");
+                    break;
+                case HouseEnv.BED:
+                    drawTargets(g,x,y,"BED");
+                    break;
+                case HouseEnv.OUTSIDE:
+                    drawTargets(g,x,y,"OUTSIDE");
+                    break;
+                case HouseEnv.VACUUM:
+                    drawTargets(g,x,y,"VACUUM");
+                    break;
+
             }
         }
 
         @Override
         public void drawAgent(Graphics g, int x, int y, Color c, int id) {
             String label = "";
+
+            //System.out.println(((HouseModel)model).humanSleeping);
             if (id == 0) {
                 label = "Human";
                 if (((HouseModel)model).humanEating) {
-                    label += " - Eating";
+                    label += "- Eating";
                     c = Color.RED;
                 }
                 if (((HouseModel)model).humanWorking) {
-                    label += " - Working";
+                    label += "-Working";
                     c = Color.RED;
                 }
                 if (((HouseModel)model).humanReading) {
-                    label += " - Reading";
+                    label += "- Reading";
                     c = Color.RED;
                 }
                 if (((HouseModel)model).humanCalling) {
-                    label += " - Calling 911";
+                    label += "- Calling 911";
                     c = Color.RED;
                 }
                 if (((HouseModel)model).humanSleeping) {
-                    label += " - Sleeping";
+                    label += "- Sleeping";
                     c = Color.RED;
                 }
                 if (((HouseModel)model).humanWalking) {
@@ -449,8 +484,8 @@ public class HouseEnv extends Environment {
             } else {
                 g.setColor(Color.black);
             }
-            super.drawString(g, x, y, defaultFont, label);
-            repaint();
+            drawString(g, x, y, defaultFont, label);
+            //repaint();
         }
 
         public void drawGarb(Graphics g, int x, int y) {
@@ -458,6 +493,14 @@ public class HouseEnv extends Environment {
             g.setColor(Color.white);
             drawString(g, x, y, defaultFont, "G");
         }
+
+        public void drawTargets(Graphics g, int x, int y,String name)
+        {
+            super.drawObstacle(g, x, y);
+            g.setColor(Color.white);
+            drawString(g, x, y, defaultFont, name);
+        }
+
 
 
 
