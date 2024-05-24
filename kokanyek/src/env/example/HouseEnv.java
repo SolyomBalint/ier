@@ -11,6 +11,7 @@ import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.sql.Struct;
+import java.util.*;
 import java.util.logging.*;
 
 import jason.asSyntax.*;
@@ -22,10 +23,6 @@ import jason.environment.grid.Location;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
-import java.util.Random;
-
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class HouseEnv extends Environment {
 
@@ -163,7 +160,7 @@ public class HouseEnv extends Environment {
         view.repaint();
         updatePercepts();
         try {
-            Thread.sleep(300);
+            Thread.sleep(200);
         } catch (Exception e) {}
         informAgsEnvironmentChanged();
         return true;
@@ -193,6 +190,7 @@ public class HouseEnv extends Environment {
             addPercept(night);
         if(time == 150)
             time = 0;
+
         removePercept(emptyVacuumBag);
 
         if(model.alarmIsOn)
@@ -200,7 +198,7 @@ public class HouseEnv extends Environment {
         else
             removePercept(alarm);
 
-        if(humanLoc.x > 12 && humanLoc.y > 12)
+        if(humanLoc.y > 12)
             removePercept(humanInTheHouse);
         else
             addPercept(humanInTheHouse);
@@ -244,6 +242,10 @@ public class HouseEnv extends Environment {
         public boolean vacuumGoing = false;
         public boolean vacuumShouldGoHome = false;
 
+        private Location doorOne = new Location(6,7);
+        private Location doorTwo = new Location(8,7);
+        private Location doorThree = new Location(7,12);
+        private List<Location> doors = Arrays.asList(doorOne,doorTwo,doorThree);
 
         Random random = new Random(System.currentTimeMillis());
 
@@ -259,20 +261,22 @@ public class HouseEnv extends Environment {
                 e.printStackTrace();
             }
 
-            for (int i = 0; i < GSize; i++) {
+            for (int i = 0; i < GSize-2; i++) {
                 add(OBSTACLE, 0, i);
             }
             for (int i = 0; i < GSize; i++) {
                 add(OBSTACLE, i, 0);
             }
             for (int i = 0; i < GSize-3; i++) {
-                add(OBSTACLE, i, GSize-1);
-            }
-            for (int i = 0; i < GSize-3; i++) {
                 add(OBSTACLE, GSize-1, i);
             }
             for (int i = 0; i < GSize/2+1; i++) {
                 add(OBSTACLE,GSize/2,i);
+            }
+            for (int i = 0; i<GSize;i++)
+            {
+                if(i!=7)
+                    add(OBSTACLE,i,GSize-3);
             }
 
             add(OBSTACLE,GSize-2,GSize/2);
@@ -284,10 +288,6 @@ public class HouseEnv extends Environment {
             add(OBSTACLE,2,GSize/2);
             add(OBSTACLE,3,GSize/2);
             add(OBSTACLE,4,GSize/2);
-
-            add(OBSTACLE,GSize-2,GSize-4);
-            add(OBSTACLE,GSize-3,GSize-4);
-            add(OBSTACLE,GSize-4,GSize-4);
 
             add(TABLE,2,8);
             add(WORK,13,13);
@@ -302,28 +302,92 @@ public class HouseEnv extends Environment {
 
         void humanMoveTowards(int x, int y) throws Exception {
             Location humanLoc = getAgPos(0);
-            if (humanLoc.x < x)
+            int humanRoom = isInRoom(humanLoc.x,humanLoc.y);
+            int targetRoom = isInRoom(x,y);
+            if(humanRoom != targetRoom && !onDoor(humanLoc.x,humanLoc.y))
+            {
+                if(humanRoom == 4) {
+                    Location door = doors.get(targetRoom-1);
+                    x = door.x;
+                    y = door.y;
+                }
+                else if(targetRoom == 4)
+                {
+                    Location door = doors.get(humanRoom-1);
+                    x = door.x;
+                    y = door.y;
+                }
+                else
+                {
+                    Location door = doors.get(humanRoom-1);
+                    x = door.x;
+                    y = door.y;
+                }
+            }
+            if (humanLoc.x < x && model.isFree(humanLoc.x+1,humanLoc.y) || (model.getAgPos(1).x == humanLoc.x+1 && model.getAgPos(1).y == humanLoc.y))
                 humanLoc.x++;
-            else if (humanLoc.x > x)
+            else if (humanLoc.x > x && model.isFree(humanLoc.x-1,humanLoc.y) || (model.getAgPos(1).x == humanLoc.x-1 && model.getAgPos(1).y == humanLoc.y))
                 humanLoc.x--;
-            if (humanLoc.y < y)
+            if (humanLoc.y < y && model.isFree(humanLoc.x,humanLoc.y+1) || (model.getAgPos(1).x == humanLoc.x && model.getAgPos(1).y == humanLoc.y+1))
                 humanLoc.y++;
-            else if (humanLoc.y > y)
+            else if (humanLoc.y > y && model.isFree(humanLoc.x,humanLoc.y-1) || (model.getAgPos(1).x == humanLoc.x && model.getAgPos(1).y == humanLoc.y-1))
                 humanLoc.y--;
             setAgPos(0, humanLoc);
         }
 
         void vacuumMoveTowards(int x, int y) throws Exception {
             Location vacuumLoc = getAgPos(1);
-            if (vacuumLoc.x < x)
+            int vacuumRoom = isInRoom(vacuumLoc.x,vacuumLoc.y);
+            int targetRoom = isInRoom(x,y);
+            if(vacuumRoom != targetRoom && !onDoor(vacuumLoc.x,vacuumLoc.y))
+            {
+                if(vacuumRoom == 4) {
+                    Location door = doors.get(targetRoom-1);
+                    x = door.x;
+                    y = door.y;
+                }
+                else if(targetRoom == 4)
+                {
+                    Location door = doors.get(vacuumRoom-1);
+                    x = door.x;
+                    y = door.y;
+                }
+                else
+                {
+                    Location door = doors.get(vacuumRoom-1);
+                    x = door.x;
+                    y = door.y;
+                }
+            }
+            if (vacuumLoc.x < x && model.isFree(vacuumLoc.x+1,vacuumLoc.y))
                 vacuumLoc.x++;
-            else if (vacuumLoc.x > x)
+            else if (vacuumLoc.x > x && model.isFree(vacuumLoc.x-1,vacuumLoc.y))
                 vacuumLoc.x--;
-            if (vacuumLoc.y < y)
+            if (vacuumLoc.y < y && model.isFree(vacuumLoc.x,vacuumLoc.y+1))
                 vacuumLoc.y++;
-            else if (vacuumLoc.y > y)
+            else if (vacuumLoc.y > y && model.isFree(vacuumLoc.x,vacuumLoc.y-1))
                 vacuumLoc.y--;
             setAgPos(1, vacuumLoc);
+        }
+
+        public int isInRoom(int x,int y)
+        {
+            if(x <= 7 && y <= 7)
+                return 1;
+            if(x >= 7 && y <= 7)
+                return 2;
+            if(y >= 13)
+                return 3;
+            return 4;
+
+        }
+
+        public boolean onDoor(int x,int y)
+        {
+            boolean one = x == 6 && y == 7;
+            boolean two = x == 8 && y == 7;
+            boolean three = x == 7 && y == 12;
+            return one || two || three;
         }
 
         void humanDoNothing(){
